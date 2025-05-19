@@ -69,10 +69,8 @@ class MLP():
             random.shuffle(training_data)
             mini_batches = [ training_data[k: k+mini_batch_size] for k in range(0, n, mini_batch_size)]
             for mini_batch in mini_batches:
-                x = mini_batch[0][0]
-                self.forward(x)
                 self.gradient_descent(mini_batch, eta)
-                print(f"Epoch {j} complete")
+            print(f"Epoch {j} complete")
     
     def forward(self, a: torch.Tensor) -> torch.Tensor:
         """Return the output of the network if ``a`` is input. Equation: a^l = sigmoid(w^l * a^(l-1) + b^(l-1))"""  
@@ -94,6 +92,7 @@ class MLP():
         mean_delta_w = [torch.zeros(w.shape, device=self.device) for w in self.weights] 
         
         for x, y in mini_batch:
+            self.forward(x)
             delta_w_x, delta_b_x = self.backprop(y)
             mean_delta_w = [nw+dnw for nw, dnw in zip(mean_delta_w, delta_w_x)] # ∑ δ^(x,l)
             mean_delta_b = [nb+dnb.squeeze() for nb, dnb in zip(mean_delta_b, delta_b_x)] # ∑(δ^(x,l) * (a^(x,l−1))^T)       
@@ -110,16 +109,15 @@ class MLP():
         error_L = MLP.cost_derivative(y, self.activations[-1]) * (sigmoid_derivative(self.zs[-1])) # Calculate error in last layer (L) with δ^L=∇aC ⊙ σ′(z^L).
         error_L = error_L.unsqueeze(1) # error_L by default is just an "array" so it has to be transformed into a matrix nx1
 
-        delta_b = [error_L] # Stores ∂C/∂b^l (the last element is δ^L)
         delta_w = [torch.matmul(error_L, self.activations[-2].unsqueeze(1).transpose(1,0))] # Stores ∂C/∂w^l (the las element is δ^L * a^(L-1))
         errors = [error_L] # stores erros for all layers 
 
         for l in range(2, self.n_layers): # l = L-1, L-2, ..., 2
             error_l = torch.matmul(torch.transpose(self.weights[-l+1], 0, 1), errors[-l+1]) * sigmoid_derivative(self.zs[-l]).unsqueeze(1) # Calculate error in layer (l) with δ^l=((w^(l+1))^T * δ^(l+1)) ⊙ σ′(z^l)
-            errors.insert(0, error_l) # insert δ^l in begining of errors list 
-            delta_b.insert(0, error_l) # ∂C/∂b^l = δ^l     
+            errors.insert(0, error_l) # insert δ^l in begining of errors list  
             delta_w.insert(0, torch.matmul(error_l, self.activations[-l-1].unsqueeze(1).transpose(1,0))) #  ∂C/∂w^l = δ^L *(a^l)^T 
 
+        delta_b = errors # ∂C/∂b^l = δ^l  
         return (delta_w, delta_b)
     
     @staticmethod
