@@ -90,43 +90,36 @@ class MLP():
         gradient descent using backpropagation to a single mini batch.
         The ``mini_batch`` is a list of tuples ``(x, y)``, and ``eta``
         is the learning rate."""
-        mean_delta_b = [torch.zeros(b.shape) for b in self.bias] 
-        mean_delta_w = [torch.zeros(w.shape) for w in self.weights] 
+        mean_delta_b = [torch.zeros(b.shape, device=self.device) for b in self.bias] 
+        mean_delta_w = [torch.zeros(w.shape, device=self.device) for w in self.weights] 
         
         for x, y in mini_batch:
             delta_w_x, delta_b_x = self.backprop(y)
-            mean_delta_b += delta_b_x/len(mini_batch) # (1/m)*∑(δ^(x,l) * (a^(x,l−1))^T)
-            mean_delta_w += delta_w_x/len(mini_batch) # (1/m)* ∑δ^(x,l)
-            
-        self.bias = [b_l - eta * delta_b_l_mean for b_l, delta_b_l_mean in zip(self.bias, mean_delta_b)] # w^l → w^l − (η/m)*∑(δ^(x,l) * (a^(x,l−1))^T)
-        self.weights = [w_l - eta * delta_w_l_mean for w_l, delta_w_l_mean in zip(self.weights, mean_delta_w)] # b^l→b^l − (η/m)* ∑δ^(x,l)
+            mean_delta_w = [nw+dnw for nw, dnw in zip(mean_delta_w, delta_w_x)] # ∑ δ^(x,l)
+            mean_delta_b = [nb+dnb.squeeze() for nb, dnb in zip(mean_delta_b, delta_b_x)] # ∑(δ^(x,l) * (a^(x,l−1))^T)       
+
+        self.weights = [w-(eta/len(mini_batch))* nw for w, nw in zip(self.weights, mean_delta_w)] # w^l → w^l − (η/m)*∑(δ^(x,l) * (a^(x,l−1))^T)
+        self.bias = [b-(eta/len(mini_batch))* nb for b, nb in zip(self.bias, mean_delta_b)] # b^l→b^l − (η/m)* ∑δ^(x,l)
             
     
     def backprop(self, y: torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         """Return a tuple ``(delta_w, delta_b)`` representing the
         gradient for the cost function C_x.  ``delta_w`` and
         ``delta_b`` are layer-by-layer lists of tensors, similar
-        to ``self.biases`` and ``self.weights``."""
-        
-        error_L = MLP.cost_derivative(y, self.activations[-1]).dot(sigmoid_derivative(self.zs[-1])) # Calculate error in last layer (L) with δ^L=∇aC ⊙ σ′(z^L).
-        
-        # If scalar convert scalar to tensor with shape [1]
-        if error_L.dim() == 0:  
-            error_L = error_L.view(1)  
-        
+        to ``self.bias`` and ``self.weights``."""   
+        error_L = MLP.cost_derivative(y, self.activations[-1]) * (sigmoid_derivative(self.zs[-1])) # Calculate error in last layer (L) with δ^L=∇aC ⊙ σ′(z^L).
+        error_L = error_L.unsqueeze(1) # error_L by default is just an "array" so it has to be transformed into a matrix nx1
+
         delta_b = [error_L] # Stores ∂C/∂b^l (the last element is δ^L)
-        print(self.activations[-2].t())
-        print(error_L)
-        delta_w = [torch.matmul(error_L, self.activations[-2].t())] # Stores ∂C/∂w^l (the las element is a^(L-1) * δ^L)
+        delta_w = [torch.matmul(error_L, self.activations[-2].unsqueeze(1).transpose(1,0))] # Stores ∂C/∂w^l (the las element is δ^L * a^(L-1))
         errors = [error_L] # stores erros for all layers 
-        
+
         for l in range(2, self.n_layers): # l = L-1, L-2, ..., 2
-            error_l = torch.matmul(torch.t(self.weights[-l+1]), errors[-l+1]).dot(sigmoid_derivative(self.zs[-l])) # Calculate error in layer (l) with δ^l=((w^(l+1))^T * δ^(l+1)) ⊙ σ′(z^l)
-            errors.insert(0, error_l) # insert δ^l in begining of errors list
-            
-            delta_b.insert(0, error_l) # ∂C/∂b^l = δ^l
-            delta_w.insert(0, torch.matmul(self.activations[-l-1].t(), error_l)) #  ∂C/∂w^l = (a^l)^T * δ^L
-            
+            error_l = torch.matmul(torch.transpose(self.weights[-l+1], 0, 1), errors[-l+1]) * sigmoid_derivative(self.zs[-l]).unsqueeze(1) # Calculate error in layer (l) with δ^l=((w^(l+1))^T * δ^(l+1)) ⊙ σ′(z^l)
+            errors.insert(0, error_l) # insert δ^l in begining of errors list 
+            delta_b.insert(0, error_l) # ∂C/∂b^l = δ^l     
+            delta_w.insert(0, torch.matmul(error_l, self.activations[-l-1].unsqueeze(1).transpose(1,0))) #  ∂C/∂w^l = δ^L *(a^l)^T 
+
         return (delta_w, delta_b)
     
     @staticmethod

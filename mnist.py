@@ -2,15 +2,14 @@ from network import MLP
 import torch
 
 def main():
-    network = MLP((2,3,1), None)
+    sizes = (784, 16, 16, 10)
+    network = MLP(sizes, None)
 
-    train_data = [
-        (torch.tensor([1,2], dtype=torch.float32), torch.tensor([1], dtype=torch.float32)), 
-        (torch.tensor([2,1], dtype=torch.float32), torch.tensor([2], dtype=torch.float32)),
-        (torch.tensor([2,2], dtype=torch.float32), torch.tensor([2], dtype=torch.float32))]
+    train_data = [ (torch.randn(sizes[0]), torch.randn(sizes[-1])) for i in range(100) ]
+    network.train(train_data, 100, 5, 0.5)
     
-    network.train(train_data, 1, 2, 0.5)
-    network.forward((torch.tensor([1,1]), torch.tensor([1])))
+    result = network.forward(torch.randn(sizes[0]))
+    print(result)
     
 if __name__ == "__main__":
     main()
