@@ -72,6 +72,12 @@ class MLP():
                 self.gradient_descent(mini_batch, eta)
             print(f"Epoch {j} complete")
     
+    def evaluate(self, a):
+        """Evaluate the output for some input"""
+        for b_l, w_l in zip(self.bias, self.weights):
+            a = sigmoid(torch.matmul(w_l, a) + b_l )
+        return a
+    
     def forward(self, a: torch.Tensor) -> torch.Tensor:
         """Return the output of the network if ``a`` is input. Equation: a^l = sigmoid(w^l * a^(l-1) + b^(l-1))"""  
         self.activations[0] = a # save input layer activations
