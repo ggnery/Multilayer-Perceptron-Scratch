@@ -2,8 +2,9 @@ from typing import Tuple, List
 from .utils import sigmoid, sigmoid_derivative
 import torch
 import random
+from abc import ABC, abstractmethod
 
-class MLP():
+class MLP(ABC):
     device: torch.device
     n_layers: int
     bias: List[torch.Tensor]
@@ -25,6 +26,8 @@ class MLP():
         
         self.device = device
         self.n_layers = len(sizes)
+        self.activations = [torch.zeros(i) for i in sizes]
+        self.zs = [torch.zeros(i) for i in sizes[1:]]
         
         """
         m = number of neurons in next layer (l) excluding input layer
@@ -49,11 +52,12 @@ class MLP():
                 [w31, w32]                 [w31]
             ] 3x2                     ] 3x1
         ]
-        """    
-        self.weights = [ torch.randn(m, n, device = device) for n, m in zip(sizes[:-1], sizes[1:]) ]
-        
-        self.activations = [torch.zeros(i) for i in sizes]
-        self.zs = [torch.zeros(i) for i in sizes[1:]]
+        """
+        self.weights = self.initialize_weights(sizes)
+    
+    @abstractmethod
+    def initialize_weights(self, sizes: Tuple[int]) -> List[torch.Tensor]:
+        pass
     
     def train(self, training_data: List[Tuple[torch.Tensor, torch.Tensor]], epochs: int, mini_batch_size: int, eta: float):
         """Train the neural network using mini-batch stochastic

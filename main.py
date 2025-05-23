@@ -1,4 +1,4 @@
-from network import MLP
+from network import Simple_MLP, Optmized_MLP
 from mnist import MNIST
 import torch
 
@@ -6,7 +6,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     sizes = (784, 16, 16, 10)
-    network = MLP(sizes, device)
+    network = Optmized_MLP(sizes, device)
     mnist = MNIST(device)
     
     (training_data, validation_data, test_data)= mnist.format_data()
