@@ -13,6 +13,12 @@ class Simple_MLP(MLP):
         error = error.unsqueeze(1) # error by default is just an "array" so it has to be transformed into a matrix nx1
         return error
 
+    def update_weights(self, n: int, m: int, eta: float, lambd: float, mean_delta_w: List[torch.Tensor]) -> List[torch.Tensor]:
+        return [w-(eta/m) * nw for w, nw in zip(self.weights, mean_delta_w)] # w^l → w^l − (η/m)*∑(δ^(x,l) * (a^(x,l−1))^T)
+        
+    def update_bias(self, n: int, m: int, eta: float, mean_delta_b: List[torch.Tensor]) -> List[torch.Tensor]:
+        return [b-(eta/m) * nb for b, nb in zip(self.bias, mean_delta_b)] # b^l→b^l − (η/m)* ∑δ^(x,l)
+
 class QuadraticCost():
     @staticmethod
     def cost(a: torch.Tensor, y: torch.Tensor) -> torch.Tensor:

@@ -5,14 +5,14 @@ import torch
 def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    sizes = (784, 16, 16, 10)
-    network = Optmized_MLP(sizes, device)
+    sizes = (784, 30, 10)
+    network = Simple_MLP(sizes, device)
     mnist = MNIST(device)
     
     (training_data, validation_data, test_data)= mnist.format_data()
     
     train_data = [ (x, y) for x, y in training_data ]
-    network.train(train_data, 10, 5, 0.5)
+    network.train(train_data, 30, 10, 0.5, 5)
      
     correct = 0
     error = 0

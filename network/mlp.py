@@ -63,7 +63,20 @@ class MLP(ABC):
     def delta(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         pass
     
-    def train(self, training_data: List[Tuple[torch.Tensor, torch.Tensor]], epochs: int, mini_batch_size: int, eta: float):
+    @abstractmethod
+    def update_weights(self, n: int, m: int, eta: float, lambd: float, mean_delta_w: List[torch.Tensor]) -> List[torch.Tensor]:
+        pass
+    
+    @abstractmethod
+    def update_bias(self, n: int, m: int, eta: float, mean_delta_b: List[torch.Tensor]) -> List[torch.Tensor]:
+        pass
+    
+    def train(self, 
+              training_data: List[Tuple[torch.Tensor, torch.Tensor]], 
+              epochs: int, 
+              mini_batch_size: int, 
+              eta: float,
+              lambd: float):
         """Train the neural network using mini-batch stochastic
         gradient descent.  The ``training_data`` is a list of tuples
         ``(x, y)`` representing the training inputs and the desired
@@ -77,7 +90,7 @@ class MLP(ABC):
             random.shuffle(training_data)
             mini_batches = [ training_data[k: k+mini_batch_size] for k in range(0, n, mini_batch_size)]
             for mini_batch in mini_batches:
-                self.gradient_descent(mini_batch, eta)
+                self.gradient_descent(mini_batch, eta, lambd, n)
             print(f"Epoch {j} complete")
     
     def evaluate(self, a):
@@ -97,7 +110,7 @@ class MLP(ABC):
         
         return self.activations[-1] # Return last element in activations (activation outuput)
     
-    def gradient_descent(self, mini_batch: List[Tuple[torch.Tensor, torch.Tensor]], eta: float):
+    def gradient_descent(self, mini_batch: List[Tuple[torch.Tensor, torch.Tensor]], eta: float, lambd: float, n: int):
         """Update the network's weights and biases by applying
         gradient descent using backpropagation to a single mini batch.
         The ``mini_batch`` is a list of tuples ``(x, y)``, and ``eta``
@@ -108,11 +121,11 @@ class MLP(ABC):
         for x, y in mini_batch:
             self.forward(x)
             delta_w_x, delta_b_x = self.backprop(y)
-            mean_delta_w = [nw+dnw for nw, dnw in zip(mean_delta_w, delta_w_x)] # ∑ δ^(x,l)
-            mean_delta_b = [nb+dnb.squeeze() for nb, dnb in zip(mean_delta_b, delta_b_x)] # ∑(δ^(x,l) * (a^(x,l−1))^T)       
+            mean_delta_w = [nw+dnw for nw, dnw in zip(mean_delta_w, delta_w_x)] # ∑(δ^(x,l) * (a^(x,l−1))^T)    
+            mean_delta_b = [nb+dnb.squeeze() for nb, dnb in zip(mean_delta_b, delta_b_x)] # ∑ δ^(x,l)
 
-        self.weights = [w-(eta/len(mini_batch))* nw for w, nw in zip(self.weights, mean_delta_w)] # w^l → w^l − (η/m)*∑(δ^(x,l) * (a^(x,l−1))^T)
-        self.bias = [b-(eta/len(mini_batch))* nb for b, nb in zip(self.bias, mean_delta_b)] # b^l→b^l − (η/m)* ∑δ^(x,l)
+        self.weights = self.update_weights(n, len(mini_batch), eta, lambd, mean_delta_w)
+        self.bias = self.update_bias(n, len(mini_batch), eta, mean_delta_b)
             
     
     def backprop(self, y: torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
@@ -128,7 +141,7 @@ class MLP(ABC):
         for l in range(2, self.n_layers): # l = L-1, L-2, ..., 2
             error_l = torch.matmul(torch.transpose(self.weights[-l+1], 0, 1), errors[-l+1]) * sigmoid_derivative(self.zs[-l]).unsqueeze(1) # Calculate error in layer (l) with δ^l=((w^(l+1))^T * δ^(l+1)) ⊙ σ′(z^l)
             errors.insert(0, error_l) # insert δ^l in begining of errors list  
-            delta_w.insert(0, torch.matmul(error_l, self.activations[-l-1].unsqueeze(1).transpose(1,0))) #  ∂C/∂w^l = δ^L *(a^l)^T 
+            delta_w.insert(0, torch.matmul(error_l, self.activations[-l-1].unsqueeze(1).transpose(1,0))) #  ∂C/∂w^l = δ^l *(a^l)^T 
 
         delta_b = errors # ∂C/∂b^l = δ^l  
         return (delta_w, delta_b)
