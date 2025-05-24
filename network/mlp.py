@@ -59,6 +59,10 @@ class MLP(ABC):
     def initialize_weights(self, sizes: Tuple[int]) -> List[torch.Tensor]:
         pass
     
+    @abstractmethod
+    def delta(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
+        pass
+    
     def train(self, training_data: List[Tuple[torch.Tensor, torch.Tensor]], epochs: int, mini_batch_size: int, eta: float):
         """Train the neural network using mini-batch stochastic
         gradient descent.  The ``training_data`` is a list of tuples
@@ -116,9 +120,8 @@ class MLP(ABC):
         gradient for the cost function C_x.  ``delta_w`` and
         ``delta_b`` are layer-by-layer lists of tensors, similar
         to ``self.bias`` and ``self.weights``."""   
-        error_L = MLP.cost_derivative(y, self.activations[-1]) * (sigmoid_derivative(self.zs[-1])) # Calculate error in last layer (L) with δ^L=∇aC ⊙ σ′(z^L).
-        error_L = error_L.unsqueeze(1) # error_L by default is just an "array" so it has to be transformed into a matrix nx1
-
+        error_L = self.delta(self.activations[-1], y, self.zs[-1])
+        
         delta_w = [torch.matmul(error_L, self.activations[-2].unsqueeze(1).transpose(1,0))] # Stores ∂C/∂w^l (the las element is δ^L * a^(L-1))
         errors = [error_L] # stores erros for all layers 
 
@@ -129,12 +132,3 @@ class MLP(ABC):
 
         delta_b = errors # ∂C/∂b^l = δ^l  
         return (delta_w, delta_b)
-    
-    @staticmethod
-    def cost_derivative(y: torch.Tensor, a_L: torch.Tensor) -> torch.Tensor:
-        """Derivation of cost function for one train example x where this cost funciton is 
-                                            n_L
-        C_x = (1/2) * (y - a_l)^2 = (1/2) *  Σ (y_j - aL_j)^2
-                                            j=0
-        """
-        return a_L - y
