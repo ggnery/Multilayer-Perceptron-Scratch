@@ -72,7 +72,7 @@ class MLP(ABC):
         pass
     
     @abstractmethod
-    def cost(self, a: torch.Tensor, y: torch.Tensor):
+    def cost(self, a: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         pass
     
     def train(self, 

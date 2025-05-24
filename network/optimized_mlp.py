@@ -28,16 +28,16 @@ class Optmized_MLP(MLP):
     def update_bias(self, n: int, m: int, eta: float, mean_delta_b: List[torch.Tensor]) -> List[torch.Tensor]:
         return [b-(eta/m)* nb for b, nb in zip(self.bias, mean_delta_b)] # b^l→b^l − (η/m)* ∑δ^(x,l)
     
-    def cost(self, a: torch.Tensor, y: torch.Tensor):
+    def cost(self, a: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return CrossEntropy.cost(a, y)
     
 class CrossEntropy():
 
-    def cost(a: torch.Tensor, y: torch.Tensor):
+    def cost(a: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
         C_x=-[yln(a)+(1-y)ln(1-a)]
         """
-        return sum(torch.matmul(-y,  torch.log(a)) + torch.matmul(y - 1, torch.log(1 - a)))
+        return torch.sum(-y * torch.log(a) - (1 - y) * torch.log(1 - a))
     
     def cost_derivative(a, y):
         return (a - y) / (a*(1 - a)) 

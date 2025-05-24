@@ -19,12 +19,12 @@ class Simple_MLP(MLP):
     def update_bias(self, n: int, m: int, eta: float, mean_delta_b: List[torch.Tensor]) -> List[torch.Tensor]:
         return [b-(eta/m) * nb for b, nb in zip(self.bias, mean_delta_b)] # b^l→b^l − (η/m)* ∑δ^(x,l)
 
-    def cost(self, a: torch.Tensor, y: torch.Tensor):
+    def cost(self, a: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return QuadraticCost.cost(a, y)
 
 class QuadraticCost():
     @staticmethod
-    def cost(a: torch.Tensor, y: torch.Tensor):
+    def cost(a: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """Return the cost associated with an output ``a`` and desired output
         ``y``.
         """
