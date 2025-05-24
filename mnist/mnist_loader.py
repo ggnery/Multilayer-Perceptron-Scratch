@@ -4,6 +4,7 @@ import gzip
 import pickle
 import numpy as np
 import torch
+from network.utils import vectorized_result
 
 class MNIST:
     training_data: Tuple[torch.Tensor, torch.Tensor | None]
@@ -66,7 +67,7 @@ class MNIST:
         turn out to be the most convenient for use in our neural network
         code."""
         training_inputs = [torch.reshape(x, (784, 1)).squeeze(1) for x in self.training_data[0]]
-        training_results = [MNIST.vectorized_result(y) for y in self.training_data[1]]
+        training_results = [vectorized_result(y) for y in self.training_data[1]]
         training_data = zip(training_inputs, training_results)
         
         validation_inputs = [torch.reshape(x, (784, 1)).squeeze(1) for x in self.validation_data[0]]
@@ -76,13 +77,3 @@ class MNIST:
         test_data = zip(test_inputs, self.test_data[1])
             
         return (training_data, validation_data, test_data)
-
-    @staticmethod
-    def vectorized_result(j: torch.Tensor):
-        """Return a 10-dimensional unit vector with a 1.0 in the jth
-        position and zeroes elsewhere.  This is used to convert a digit
-        (0...9) into a corresponding desired output from the neural
-        network."""
-        e = torch.zeros(10)
-        e[j] = 1.0
-        return e

@@ -19,15 +19,6 @@ class Optmized_MLP(MLP):
         error = error.unsqueeze(1) # error by default is just an "array" so it has to be transformed into a matrix nx1
         return error
     
-    # def update_weights(self, n: int, eta: float, lambd: float, mean_delta_w: List[torch.Tensor]) -> List[torch.Tensor]:
-    #     return [(1 - (eta*lambd)/n) * w - ((eta/n) * nw) for w, nw in zip(self.weights, mean_delta_w)] # w^l → w^l − (η/m)*∑(δ^(x,l) * (a^(x,l−1))^T)
-    def update_weights(self, n: int, m: int, eta: float, lambd: float, mean_delta_w: List[torch.Tensor]) -> List[torch.Tensor]:
-        return [(1-(eta*lambd)/n)*w-(eta/m)*nw
-                        for w, nw in zip(self.weights, mean_delta_w)] # w^l→(1-η*λ/n)w^l − (η/m)* ∑∂C/∂w^l
-       
-    def update_bias(self, n: int, m: int, eta: float, mean_delta_b: List[torch.Tensor]) -> List[torch.Tensor]:
-        return [b-(eta/m)* nb for b, nb in zip(self.bias, mean_delta_b)] # b^l→b^l − (η/m)* ∑δ^(x,l)
-    
     def cost(self, a: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return CrossEntropy.cost(a, y)
     

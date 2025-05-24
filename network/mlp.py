@@ -1,5 +1,5 @@
-from typing import Tuple, List
-from .utils import sigmoid, sigmoid_derivative
+from typing import Tuple, List, Type
+from .utils import sigmoid, sigmoid_derivative, vectorized_result
 import torch
 import random
 import json
@@ -64,14 +64,6 @@ class MLP(ABC):
     
     @abstractmethod
     def delta(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
-        pass
-    
-    @abstractmethod
-    def update_weights(self, n: int, m: int, eta: float, lambd: float, mean_delta_w: List[torch.Tensor]) -> List[torch.Tensor]:
-        pass
-    
-    @abstractmethod
-    def update_bias(self, n: int, m: int, eta: float, mean_delta_b: List[torch.Tensor]) -> List[torch.Tensor]:
         pass
     
     @abstractmethod
@@ -165,8 +157,8 @@ class MLP(ABC):
             mean_delta_w = [nw+dnw for nw, dnw in zip(mean_delta_w, delta_w_x)] # ∑(δ^(x,l) * (a^(x,l−1))^T)    
             mean_delta_b = [nb+dnb.squeeze() for nb, dnb in zip(mean_delta_b, delta_b_x)] # ∑ δ^(x,l)
 
-        self.weights = self.update_weights(n, len(mini_batch), eta, lambd, mean_delta_w)
-        self.bias = self.update_bias(n, len(mini_batch), eta, mean_delta_b)
+        self.weights = [(1-(eta*lambd)/n)*w-(eta/len(mini_batch))*nw for w, nw in zip(self.weights, mean_delta_w)] # w^l→(1-η*λ/n)w^l − (η/m)* ∑∂C/∂w^l
+        self.bias = [b-(eta/len(mini_batch))* nb for b, nb in zip(self.bias, mean_delta_b)] # b^l→b^l − (η/m)* ∑δ^(x,l)
             
     
     def backprop(self, y: torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
@@ -247,25 +239,16 @@ class MLP(ABC):
         f.close()
     
 
-def load(filename: str, device: torch.device | None):
+def load(filename: str, device: torch.device | None, clazz: Type[MLP]):
     """Load a neural network from the file ``filename``.  Returns an instance of Network."""
     f = open(filename, "r")
     data = json.load(f)
     f.close()
     
-    mlp = MLP(data["sizes"], device)
+    mlp = clazz(data["sizes"], device)
     mlp.weights = [torch.tensor(w) for w in data["weights"]]
     mlp.biases = [torch.tensor(b) for b in data["biases"]]
     mlp.activations = [torch.tensor(a) for a in data["activations"]]
     mlp.zs = [torch.tensor(z) for z in data["zs"]]
     
     return mlp
-
-def vectorized_result(j: torch.Tensor):
-    """Return a 10-dimensional unit vector with a 1.0 in the jth
-    position and zeroes elsewhere.  This is used to convert a digit
-    (0...9) into a corresponding desired output from the neural
-    network."""
-    e = torch.zeros(10)
-    e[j] = 1.0
-    return e
