@@ -2,10 +2,12 @@ from typing import Tuple, List
 from .utils import sigmoid, sigmoid_derivative
 import torch
 import random
+import json
 from abc import ABC, abstractmethod
 
 class MLP(ABC):
     device: torch.device
+    sizes: Tuple[int]
     n_layers: int
     bias: List[torch.Tensor]
     weights: List[torch.Tensor]
@@ -25,6 +27,7 @@ class MLP(ABC):
         ever used in computing the outputs from later layers."""
         
         self.device = device
+        self.sizes = sizes
         self.n_layers = len(sizes)
         self.activations = [torch.zeros(i, device=self.device) for i in sizes]
         self.zs = [torch.zeros(i, device=self.device) for i in sizes[1:]]
@@ -231,6 +234,32 @@ class MLP(ABC):
             torch.norm(w)**2 for w in self.weights)
         return cost
     
+    def save(self, filename: str):
+        """Save the neural network to the file ``filename``."""
+        data = {"sizes": self.sizes,
+                "weights": [w.tolist() for w in self.weights],
+                "biases": [b.tolist() for b in self.bias],
+                "activations": [a.tolist() for a in self.activations],
+                "zs": [z.tolist() for z in self.zs]
+                }
+        f = open(filename, "w")
+        json.dump(data, f)
+        f.close()
+    
+
+def load(filename: str, device: torch.device | None):
+    """Load a neural network from the file ``filename``.  Returns an instance of Network."""
+    f = open(filename, "r")
+    data = json.load(f)
+    f.close()
+    
+    mlp = MLP(data["sizes"], device)
+    mlp.weights = [torch.tensor(w) for w in data["weights"]]
+    mlp.biases = [torch.tensor(b) for b in data["biases"]]
+    mlp.activations = [torch.tensor(a) for a in data["activations"]]
+    mlp.zs = [torch.tensor(z) for z in data["zs"]]
+    
+    return mlp
 
 def vectorized_result(j: torch.Tensor):
     """Return a 10-dimensional unit vector with a 1.0 in the jth
