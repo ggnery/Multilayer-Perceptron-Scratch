@@ -26,8 +26,8 @@ class MLP(ABC):
         
         self.device = device
         self.n_layers = len(sizes)
-        self.activations = [torch.zeros(i) for i in sizes]
-        self.zs = [torch.zeros(i) for i in sizes[1:]]
+        self.activations = [torch.zeros(i, device=self.device) for i in sizes]
+        self.zs = [torch.zeros(i, device=self.device) for i in sizes[1:]]
         
         """
         m = number of neurons in next layer (l) excluding input layer
@@ -71,12 +71,21 @@ class MLP(ABC):
     def update_bias(self, n: int, m: int, eta: float, mean_delta_b: List[torch.Tensor]) -> List[torch.Tensor]:
         pass
     
+    @abstractmethod
+    def cost(self, a: torch.Tensor, y: torch.Tensor):
+        pass
+    
     def train(self, 
               training_data: List[Tuple[torch.Tensor, torch.Tensor]], 
               epochs: int, 
               mini_batch_size: int, 
               eta: float,
-              lambd: float):
+              lambd: float = 0.0,
+              evaluation_data: List[Tuple[torch.Tensor, torch.Tensor]] = None,
+              monitor_evaluation_cost=False,
+              monitor_evaluation_accuracy=False,
+              monitor_training_cost=False,
+              monitor_training_accuracy=False):
         """Train the neural network using mini-batch stochastic
         gradient descent.  The ``training_data`` is a list of tuples
         ``(x, y)`` representing the training inputs and the desired
@@ -85,13 +94,42 @@ class MLP(ABC):
         network will be evaluated against the test data after each
         epoch, and partial progress printed out.  This is useful for
         tracking progress, but slows things down substantially."""
+        if evaluation_data: n_data = len(evaluation_data)
         n = len(training_data)
+        
+        evaluation_cost, evaluation_accuracy = [], []
+        training_cost, training_accuracy = [], []
         for j in range(epochs):
             random.shuffle(training_data)
             mini_batches = [ training_data[k: k+mini_batch_size] for k in range(0, n, mini_batch_size)]
             for mini_batch in mini_batches:
                 self.gradient_descent(mini_batch, eta, lambd, n)
+            
+            print("=========================")
             print(f"Epoch {j} complete")
+            print("=========================")
+            if monitor_training_cost:
+                cost = self.total_cost(training_data, lambd)
+                training_cost.append(cost)
+                print(f"Cost on training data: {cost}")
+            
+            if monitor_training_accuracy:
+                accuracy = self.accuracy(training_data, convert=True)
+                training_accuracy.append(accuracy)
+                print(f"Accuracy on training data: {accuracy} / {n} = {accuracy/n}")
+            
+            if monitor_evaluation_cost:
+                cost = self.total_cost(evaluation_data, lambd, convert=True)
+                evaluation_cost.append(cost)
+                print(f"Cost on evaluation data: {cost}")
+            
+            if monitor_evaluation_accuracy:
+                accuracy = self.accuracy(evaluation_data)
+                evaluation_accuracy.append(accuracy)
+                print(f"Accuracy on evaluation data: {accuracy} / {n_data} = {accuracy/n_data}")
+            print("=========================")
+        
+        return evaluation_cost, evaluation_accuracy, training_cost, training_accuracy
     
     def evaluate(self, a):
         """Evaluate the output for some input"""
@@ -145,3 +183,60 @@ class MLP(ABC):
 
         delta_b = errors # ∂C/∂b^l = δ^l  
         return (delta_w, delta_b)
+    
+    def accuracy(self, data: List[Tuple[torch.Tensor, torch.Tensor]], convert=False):
+        """Return the number of inputs in ``data`` for which the neural
+        network outputs the correct result. The neural network's
+        output is assumed to be the index of whichever neuron in the
+        final layer has the highest activation.
+
+        The flag ``convert`` should be set to False if the data set is
+        validation or test data (the usual case), and to True if the
+        data set is the training data. The need for this flag arises
+        due to differences in the way the results ``y`` are
+        represented in the different data sets.  In particular, it
+        flags whether we need to convert between the different
+        representations.  It may seem strange to use different
+        representations for the different data sets.  Why not use the
+        same representation for all three data sets?  It's done for
+        efficiency reasons -- the program usually evaluates the cost
+        on the training data and the accuracy on other data sets.
+        These are different types of computations, and using different
+        representations speeds things up.  More details on the
+        representations can be found in
+        mnist_loader.load_data_wrapper.
+
+        """
+        if convert:
+            results = [(torch.argmax(self.evaluate(x)), torch.argmax(y))
+                       for (x, y) in data]
+        else:
+            results = [(torch.argmax(self.evaluate(x)), y)
+                        for (x, y) in data]
+        return sum(int(x == y) for (x, y) in results)
+
+    def total_cost(self, data: List[Tuple[torch.Tensor, torch.Tensor]], lmbda: float, convert=False):
+        """Return the total cost for the data set ``data``.  The flag
+        ``convert`` should be set to False if the data set is the
+        training data (the usual case), and to True if the data set is
+        the validation or test data.  See comments on the similar (but
+        reversed) convention for the ``accuracy`` method, above.
+        """
+        cost = 0.0
+        for x, y in data:
+            a = self.evaluate(x)
+            if convert: y = vectorized_result(y)
+            cost += self.cost(a, y)/len(data)
+        cost += 0.5*(lmbda/len(data))*sum(
+            torch.norm(w)**2 for w in self.weights)
+        return cost
+    
+
+def vectorized_result(j: torch.Tensor):
+    """Return a 10-dimensional unit vector with a 1.0 in the jth
+    position and zeroes elsewhere.  This is used to convert a digit
+    (0...9) into a corresponding desired output from the neural
+    network."""
+    e = torch.zeros(10)
+    e[j] = 1.0
+    return e

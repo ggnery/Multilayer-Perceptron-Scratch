@@ -7,7 +7,7 @@ import math
 class Optmized_MLP(MLP):
     
     def initialize_weights(self, sizes: Tuple[int]) -> List[torch.Tensor]:
-        return [ torch.randn(j, k, device= self.device)/math.sqrt(k) for k, j in zip(sizes[:-1], sizes[1:]) ]
+        return [ torch.randn(j, k, device=self.device)/math.sqrt(k) for k, j in zip(sizes[:-1], sizes[1:]) ]
     
     def delta(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         """Return the error delta from the output layer.  Note that the
@@ -28,14 +28,16 @@ class Optmized_MLP(MLP):
     def update_bias(self, n: int, m: int, eta: float, mean_delta_b: List[torch.Tensor]) -> List[torch.Tensor]:
         return [b-(eta/m)* nb for b, nb in zip(self.bias, mean_delta_b)] # b^l→b^l − (η/m)* ∑δ^(x,l)
     
+    def cost(self, a: torch.Tensor, y: torch.Tensor):
+        return CrossEntropy.cost(a, y)
     
 class CrossEntropy():
 
-    def cost(a: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def cost(a: torch.Tensor, y: torch.Tensor):
         """
         C_x=-[yln(a)+(1-y)ln(1-a)]
         """
-        return torch.matmul(-y,  torch.log(a)) + torch.matmul(y - 1, torch.log(1 - a)) 
+        return sum(torch.matmul(-y,  torch.log(a)) + torch.matmul(y - 1, torch.log(1 - a)))
     
     def cost_derivative(a, y):
         return (a - y) / (a*(1 - a)) 

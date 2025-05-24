@@ -12,17 +12,14 @@ def main():
     (training_data, validation_data, test_data)= mnist.format_data()
     
     train_data = [ (x, y) for x, y in training_data ]
-    network.train(train_data, 30, 10, 0.5, 5)
-     
-    correct = 0
-    error = 0
-    for x, y in test_data:
-        y_pred = torch.argmax(network.evaluate(x))
-        if y_pred == y: 
-            correct += 1 
-        else: 
-            error += 1
-    print("Model accuracy: ", correct/(correct+error))
+    val_data = [ (x, y) for x, y in validation_data ]
+
+    network.train(train_data, 30, 10, 0.5, 5, 
+                  evaluation_data = val_data, 
+                  monitor_evaluation_accuracy=True, 
+                  monitor_evaluation_cost=True, 
+                  monitor_training_accuracy=True,
+                  monitor_training_cost=True)
     
 if __name__ == "__main__":
     main()
