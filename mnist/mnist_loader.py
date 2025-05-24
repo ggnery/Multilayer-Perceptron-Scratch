@@ -67,7 +67,7 @@ class MNIST:
         turn out to be the most convenient for use in our neural network
         code."""
         training_inputs = [torch.reshape(x, (784, 1)).squeeze(1) for x in self.training_data[0]]
-        training_results = [vectorized_result(y) for y in self.training_data[1]]
+        training_results = [vectorized_result(y).to(self.device) for y in self.training_data[1]]
         training_data = zip(training_inputs, training_results)
         
         validation_inputs = [torch.reshape(x, (784, 1)).squeeze(1) for x in self.validation_data[0]]

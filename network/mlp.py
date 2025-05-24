@@ -220,7 +220,7 @@ class MLP(ABC):
         cost = 0.0
         for x, y in data:
             a = self.evaluate(x)
-            if convert: y = vectorized_result(y)
+            if convert: y = vectorized_result(y).to(self.device)
             cost += self.cost(a, y)/len(data)
         cost += 0.5*(lmbda/len(data))*sum(
             torch.norm(w)**2 for w in self.weights)
